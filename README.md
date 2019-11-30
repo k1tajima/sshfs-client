@@ -32,7 +32,7 @@ deploy-job:
     script:
         - cp .ssh/* ~/.ssh/ && chmod -R 700 ~/.ssh
         - sshfs -o IdentityFile=~/.ssh/$SSH_KEY_FILE $SSHFS_OPTS $DEST /mnt/remote
-        - rsync -avhz --delete $SRC/ $DEST
+        - rsync -avhz --delete $SRC/ /mnt/remote
         # - rm -rf /mnt/remote/*
         # - cp -rT $SRC /mnt/remote
         - ls -al /mnt/remote
