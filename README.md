@@ -40,6 +40,8 @@ deploy-job:
         DEST: remote-user@remote-host.example.com:/remote/host/path
         SSH_KEY_FILE: id_rsa
         SSHFS_OPTS: -o allow_other,reconnect
+        ## Ignore known_hosts
+        # SSHFS_OPTS: -o allow_other,reconnect,UserKnownHostsFile=/dev/null,StrictHostKeyChecking=no
     script:
         - if [ -z $SSH_KEY ]; then echo "$SSH_KEY" > /config/.ssh/$SSH_KEY_FILE; fi
         - cp .ssh/* /config/.ssh/ && chmod -R 700 /config/.ssh
@@ -76,7 +78,7 @@ docker run --rm -it \
     k1tajima/sshfs-client
 
 # コンテナ内のshellでマウントしてファイル操作
-sshfs -o IdentityFile=/config/.ssh/id_rsa remote-user@remote-host.example.com:/remote/host/path /mnt/remote
+sshfs -o IdentityFile=/config/.ssh/id_rsa -o allow_other,reconnect remote-user@remote-host.example.com:/remote/host/path /mnt/remote
 rm -rf /mnt/remote/*
 cp -rT /mnt/local/deploy/files/path /mnt/remote
 ls -al /mnt/remote
