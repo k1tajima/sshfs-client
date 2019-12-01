@@ -47,7 +47,7 @@ deploy-job:
         - cp .ssh/* /config/.ssh/ && chmod -R 700 /config/.ssh
         - sshfs -o IdentityFile=/config/.ssh/$SSH_KEY_FILE $SSHFS_OPTS $DEST /mnt/remote
         ## Sync to mirroring
-        - rsync -avhz --delete $SRC/ /mnt/remote
+        - rsync -avh --delete $SRC/ /mnt/remote
         ## Clean and Copy all
         # - rm -rf /mnt/remote/*
         # - cp -rT $SRC /mnt/remote
@@ -73,14 +73,15 @@ deploy-job:
 
 ```bash
 docker run --rm -it \
-    -v "$PWD/.ssh:/config/.ssh" -v "$PWD:/mnt/local" \
+    -v "$PWD/.ssh:/config/.ssh" -v "$PWD/deploy/files/path:/mnt/local" \
     --cap-add SYS_ADMIN --device /dev/fuse \
     k1tajima/sshfs-client
 
-# コンテナ内のshellでマウントしてファイル操作
+## コンテナ内のshellでマウントしてファイル操作
 sshfs -o IdentityFile=/config/.ssh/id_rsa -o allow_other,reconnect remote-user@remote-host.example.com:/remote/host/path /mnt/remote
-rm -rf /mnt/remote/*
-cp -rT /mnt/local/deploy/files/path /mnt/remote
+rsync -avh --delete /mnt/local/ /mnt/remote
+# rm -rf /mnt/remote/*
+# cp -rT /mnt/local /mnt/remote
 ls -al /mnt/remote
 umount /mnt/remote
 ```
