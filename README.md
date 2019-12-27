@@ -47,10 +47,8 @@ deploy-job:
         - cp .ssh/* /config/.ssh/ && chmod -R 700 /config/.ssh
         - sshfs -o IdentityFile=/config/.ssh/$SSH_KEY_FILE $SSHFS_OPTS $DEST /mnt/remote
         ## Sync to mirroring
-        - rsync -avh --delete $SRC/ /mnt/remote
-        ## Clean and Copy all
-        # - rm -rf /mnt/remote/*
-        # - cp -rT $SRC /mnt/remote
+        # rsync -a オプションによる所有者やグループの同期がエラーになる場合、代わりに -rlt オプションを使用
+        - rsync -rltvh --delete $SRC/ /mnt/remote
         - ls -al /mnt/remote
         ## Unmount on Alpine Linux
         - umount /mnt/remote
@@ -66,29 +64,32 @@ deploy-job:
     > https://docs.gitlab.com/runner/configuration/advanced-configuration.html#the-runnersdocker-section
 
 * SSH 接続に使用する秘密鍵や known_hosts ファイルなどをリポジトリの .ssh ディレクトリから /config/.ssh にコピーする。
-* インストール済みの sshfs コマンドを使用してリモートディレクトリを /mnt/remote にマウントする。
-* リモートディレクトリ内のファイルを一掃して、手元のファイル一式をコピーする。
+* リポジトリに秘密鍵をファイル保存したくない場合は、[環境変数][file-type-variables] `SSH_KEY` に秘密鍵の内容を設定する。
+* sshfs コマンドを使用してリモートディレクトリを /mnt/remote にマウントする。
+* rsync コマンドでリモートディレクトリと同期する。
+
+[file-type-variables]: https://docs.gitlab.com/ee/ci/variables/#file-type
 
 ### Docker 環境でインタラクティブに使用する例
 
 ```bash
 docker run --rm -it \
-    -v "$PWD/.ssh:/config/.ssh" -v "$PWD/deploy/files/path:/mnt/local" \
+    -v "$PWD/.ssh:/config/.ssh" \
+    -v "$PWD/deploy/files/path:/mnt/local" \
     --cap-add SYS_ADMIN --device /dev/fuse \
     k1tajima/sshfs-client
 
 ## コンテナ内のshellでマウントしてファイル操作
 sshfs -o IdentityFile=/config/.ssh/id_rsa -o allow_other,reconnect remote-user@remote-host.example.com:/remote/host/path /mnt/remote
-rsync -avh --delete /mnt/local/ /mnt/remote
-# rm -rf /mnt/remote/*
-# cp -rT /mnt/local /mnt/remote
+rsync -rltvh --delete /mnt/local/ /mnt/remote
 ls -al /mnt/remote
 umount /mnt/remote
 ```
 
-* コンテナ実行時に SSH 接続に使用する秘密鍵や known_hosts ファイルなどの格納先 .ssh ディレクトリを /config/.ssh ボリュームにマウントする。
-* インストール済みの sshfs コマンドを使用してリモートディレクトリを /mnt/remote にマウントする。
-* リモートディレクトリ内のファイルを一掃して、手元のファイル一式をコピーする。
+* SSH 接続に使用する秘密鍵や known_hosts ファイルなどの格納先 .ssh ディレクトリを /config/.ssh ボリュームにマウントする。
+* 同期させるローカルディレクトリを /mnt/local ボリュームにマウントする。
+* sshfs コマンドを使用してリモートディレクトリを /mnt/remote にマウントする。
+* rsync コマンドでリモートディレクトリと同期する。
 
 ## 関連情報
 
