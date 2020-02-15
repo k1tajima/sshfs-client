@@ -3,6 +3,7 @@
 *~/
 *.bak
 *.tmp
+.ssh/
 
 # http://www.gnu.org/software/automake
 

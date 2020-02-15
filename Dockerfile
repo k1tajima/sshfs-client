@@ -1,9 +1,9 @@
 ARG TAG=latest
 FROM alpine:${TAG}
-ARG TAG
 
-RUN echo "alpine:${TAG}" > baseimage_tag && cat baseimage_tag && \
-    # apk update && apk upgrade && \
+ARG TAG
+ENV BASE_IMAGE=alpine:${TAG}
+RUN apk update && \
     apk --no-cache add sshfs rsync openssh-client && \
     mkdir -p -m 700 /config/.ssh && ln -s /config/.ssh ~/.ssh && \
     ls -al ~/

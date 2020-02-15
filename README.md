@@ -28,33 +28,26 @@
 ```yml
 stages:
     - deploy
-
-image: k1tajima/sshfs-client:latest
-
 deploy-job:
     stage: deploy
     tags:
         - docker
+    image: k1tajima/sshfs-client
     variables:
         SRC: deploy/files/path
         DEST: remote-user@remote-host.example.com:/remote/host/path
-        SSH_KEY_FILE: id_rsa
-        SSHFS_OPTS: -o allow_other,reconnect
-        ## Ignore known_hosts
-        # SSHFS_OPTS: -o allow_other,reconnect,UserKnownHostsFile=/dev/null,StrictHostKeyChecking=no
+        ## known_hosts を無効化
+        SSHFS_OPTS: -o allow_other,reconnect,UserKnownHostsFile=/dev/null,StrictHostKeyChecking=no
     script:
-        - if [ -z $SSH_KEY ]; then echo "$SSH_KEY" > /config/.ssh/$SSH_KEY_FILE; fi
-        - cp .ssh/* /config/.ssh/ && chmod -R 700 /config/.ssh
-        - sshfs -o IdentityFile=/config/.ssh/$SSH_KEY_FILE $SSHFS_OPTS $DEST /mnt/remote
-        ## Sync to mirroring
-        # rsync -a オプションによる所有者やグループの同期がエラーになる場合、代わりに -rlt オプションを使用
-        - rsync -rltvh --delete $SRC/ /mnt/remote
-        - ls -al /mnt/remote
-        ## Unmount on Alpine Linux
+        ## See https://docs.gitlab.com/ee/ci/variables/#file-type
+        - sshfs -o IdentityFile="$SSH_KEY" $SSHFS_OPTS $DEST /mnt/remote
+        ## ミラーリング（チェックサムによる更新判定・削除反映）
+        - rsync -rlvh --checksum --delete $SRC/ /mnt/remote
+        - ls -alR /mnt/remote > remote_ls-alR.txt
         - umount /mnt/remote
     artifacts:
         paths:
-            - $SRC
+            - remote_ls-alR.txt
 ```
 
 * GitLab-Runner として Docker 上で実行されるものを使用するように tags: を指定する。
@@ -63,10 +56,10 @@ deploy-job:
 
     > https://docs.gitlab.com/runner/configuration/advanced-configuration.html#the-runnersdocker-section
 
-* SSH 接続に使用する秘密鍵や known_hosts ファイルなどをリポジトリの .ssh ディレクトリから /config/.ssh にコピーする。
-* リポジトリに秘密鍵をファイル保存したくない場合は、[環境変数][file-type-variables] `SSH_KEY` に秘密鍵の内容を設定する。
+* SSH 接続に使用する秘密鍵は、[環境変数][file-type-variables] `SSH_KEY` に秘密鍵の内容を設定する。
 * sshfs コマンドを使用してリモートディレクトリを /mnt/remote にマウントする。
-* rsync コマンドでリモートディレクトリと同期する。
+* rsync コマンドでリモートディレクトリと同期する。`--checksum` オプションで差分があるファイルのみ転送する。
+* rsync -a オプションでは所有者やグループの同期でエラーになる場合があるため、代わりに -rl オプションを使用する。
 
 [file-type-variables]: https://docs.gitlab.com/ee/ci/variables/#file-type
 
@@ -76,13 +69,14 @@ deploy-job:
 docker run --rm -it \
     -v "$PWD/.ssh:/config/.ssh" \
     -v "$PWD/deploy/files/path:/mnt/local" \
-    --cap-add SYS_ADMIN --device /dev/fuse \
+    --cap-add SYS_ADMIN \
+    --device /dev/fuse \
     k1tajima/sshfs-client
 
 ## コンテナ内のshellでマウントしてファイル操作
 sshfs -o IdentityFile=/config/.ssh/id_rsa -o allow_other,reconnect remote-user@remote-host.example.com:/remote/host/path /mnt/remote
-rsync -rltvh --delete /mnt/local/ /mnt/remote
-ls -al /mnt/remote
+rsync -rlcvh --delete /mnt/local/ /mnt/remote
+ls -alR /mnt/remote > remote_ls-alR.txt
 umount /mnt/remote
 ```
 
