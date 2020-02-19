@@ -40,8 +40,11 @@ deploy-job:
         ## known_hosts を無効化
         SSHFS_OPTS: -o allow_other,reconnect,UserKnownHostsFile=/dev/null,StrictHostKeyChecking=no
     script:
+        - echo Deploy $SRC to $DEST
+        ## GitLab-CI Variables: SSH_KEY as File Type Variable
         ## See https://docs.gitlab.com/ee/ci/variables/#file-type
-        - sshfs -o IdentityFile="$SSH_KEY" $SSHFS_OPTS $DEST /mnt/remote
+        - chmod 700 $SSH_KEY
+        - sshfs -o IdentityFile=$SSH_KEY $SSHFS_OPTS $DEST /mnt/remote
         ## ミラーリング（チェックサムによる更新判定・削除反映）
         - rsync -rlvh --checksum --delete $SRC/ /mnt/remote
         - ls -alR /mnt/remote > remote_ls-alR.txt
